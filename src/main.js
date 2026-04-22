@@ -509,13 +509,17 @@ function renderLeaderboard(data) {
 }
 
 function setupRealtimeSubscription() {
-    if (!insforge) return;
-    insforge
-        .channel('public:leaderboard')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, () => {
-            fetchLeaderboard();
-        })
-        .subscribe();
+    if (!insforge || !insforge.database) return;
+    try {
+        insforge.database
+            .channel('public:leaderboard')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, () => {
+                fetchLeaderboard();
+            })
+            .subscribe();
+    } catch (e) {
+        console.warn("Realtime no soportado o error de configuración:", e);
+    }
 }
 
 // ══════════════════════════════════════════════

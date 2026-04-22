@@ -443,22 +443,13 @@ async function guardarPuntuacion(player, puntos) {
         return;
     }
     try {
-        if (numeroDePartida > 1) {
-            // Actualizar registro existente usando el nombre del jugador
-            const { error } = await insforge.database
-                .from('leaderboard')
-                .update({ score: puntos })
-                .eq('player_name', player);
+        // Como las reglas de seguridad (RLS) de la BD no permiten UPDATE a usuarios anónimos,
+        // siempre hacemos un INSERT. El frontend se encargará de agrupar y mostrar solo el más reciente.
+        const { error } = await insforge.database
+            .from('leaderboard')
+            .insert([{ player_name: player, score: puntos }]);
             
-            if (error) throw error;
-        } else {
-            // Insertar nuevo registro
-            const { error } = await insforge.database
-                .from('leaderboard')
-                .insert([{ player_name: player, score: puntos }]);
-                
-            if (error) throw error;
-        }
+        if (error) throw error;
         
         fetchLeaderboard();
     } catch (err) {
@@ -469,17 +460,42 @@ async function guardarPuntuacion(player, puntos) {
 async function fetchLeaderboard() {
     if (!insforge) return;
     try {
+        // Traemos más registros ordenados por el más reciente (id descendente)
         const { data, error } = await insforge.database
             .from('leaderboard')
-            .select('player_name, score')
-            .order('score', { ascending: false })
-            .limit(10);
+            .select('player_name, score, id')
+            .order('id', { ascending: false })
+            .limit(100);
 
         if (error) throw error;
-        renderLeaderboard(data);
+
+        // Filtrar repetidos: mantener solo el último registro de cada jugador
+        const uniquePlayers = new Map();
+        data.forEach(entry => {
+            if (!uniquePlayers.has(entry.player_name)) {
+                uniquePlayers.set(entry.player_name, entry);
+            }
+        });
+
+        // Ordenar por puntaje (mayor a menor) y tomar el top 10
+        const sortedData = Array.from(uniquePlayers.values())
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
+
+        renderLeaderboard(sortedData);
     } catch (err) {
         console.error("Error obteniendo leaderboard:", err);
-        leaderboardList.innerHTML = `<li class="loading">Error de BD: ${err.message || 'Error'}</li>`;
+        // Fallback: por si no existe la columna 'id' en la base de datos
+        try {
+            const fallback = await insforge.database
+                .from('leaderboard')
+                .select('player_name, score')
+                .order('score', { ascending: false })
+                .limit(10);
+            if (!fallback.error) renderLeaderboard(fallback.data);
+        } catch (e) {
+            leaderboardList.innerHTML = `<li class="loading">Error de BD: ${err.message || 'Error'}</li>`;
+        }
     }
 }
 

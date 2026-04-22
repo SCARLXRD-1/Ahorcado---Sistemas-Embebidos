@@ -17,6 +17,6 @@
     "vite": "^8.0.9"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.104.0"
+    "@insforge/sdk": "^1.2.5"
   }
 }

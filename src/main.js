@@ -1,110 +1,209 @@
-import { supabase } from './insforge.js';
+import { insforge } from './insforge.js';
 
-// Datos del juego
-const palabras = [
+// ══════════════════════════════════════════════
+//  BANCO DE PALABRAS (mínimo 4 para una partida)
+// ══════════════════════════════════════════════
+const BANCO_PALABRAS = [
     { palabra: "IOT", pista: "Conecta dispositivos a internet" },
+    { palabra: "DOMOTICA", pista: "Sistemas en casas inteligentes" },
+    { palabra: "AUTOMATIZACION", pista: "Uso en fábricas automatizadas" },
+    { palabra: "SENSORES", pista: "Dispositivos que capturan datos" },
+    { palabra: "ACTUADORES", pista: "Dispositivos que ejecutan acciones" },
+    { palabra: "DETERMINISMO", pista: "Respuesta garantizada en tiempo definido" },
+    { palabra: "ENERGIA", pista: "Uso eficiente de energía en dispositivos" },
+    { palabra: "RECURSOS", pista: "Memoria y capacidad limitadas" },
     { palabra: "RTOS", pista: "Sistema operativo en tiempo real" },
-    { palabra: "CAN", pista: "Bus usado en automóviles" },
-    { palabra: "LIN", pista: "Bus de bajo costo" },
-    { palabra: "MQTT", pista: "Protocolo basado en TCP para telemetría" },
-    { palabra: "COAP", pista: "Protocolo basado en UDP" },
-    { palabra: "I2C", pista: "Comunicación simple con pull-up" },
-    { palabra: "I3C", pista: "Versión moderna de I2C" },
-    { palabra: "TEDS", pista: "Datos del sensor para autoconfiguración" },
-    { palabra: "ARDUINO", pista: "Plataforma de prototipado popular" }
+    { palabra: "INTEROPERABILIDAD", pista: "Comunicación entre dispositivos" },
+    { palabra: "IEEE1451", pista: "Estándar para sensores inteligentes" },
+    { palabra: "NCAP", pista: "Interfaz de red del sistema" },
+    { palabra: "TII", pista: "Interfaz independiente de transductores" },
+    { palabra: "STIM", pista: "Módulo con sensores físicos" },
+    { palabra: "TEDS", pista: "Datos electrónicos del sensor" },
+    { palabra: "I2C", pista: "Comunicación simple con resistencias pull-up" },
+    { palabra: "I3C", pista: "Evolución moderna de I2C" },
+    { palabra: "CAN", pista: "Bus confiable en automóviles" },
+    { palabra: "LIN", pista: "Red de bajo costo maestro-esclavo" },
+    { palabra: "MQTT", pista: "Protocolo IoT basado en TCP" },
+    { palabra: "COAP", pista: "Protocolo IoT basado en UDP" },
+    { palabra: "PERCEPCION", pista: "Capa donde se encuentran sensores y actuadores" },
+    { palabra: "RED", pista: "Capa de procesamiento y red de datos" },
+    { palabra: "APLICACION", pista: "Capa de aplicaciones y gestión" },
+    { palabra: "LPWAN", pista: "Redes de largo alcance y bajo consumo" },
+    { palabra: "LORAWAN", pista: "Tecnología de comunicación IoT de largo alcance" }
 ];
 
-// Variables de estado
+// ══════════════════════════════════════════════
+//  CONFIGURACIÓN DEL JUEGO
+// ══════════════════════════════════════════════
+const TOTAL_RONDAS       = 6;
+const TIEMPO_POR_RONDA   = 30;       // segundos
+const INTENTOS_MAXIMOS   = 6;        // partes del ahorcado
+const PUNTOS_BASE        = 100;      // puntos que vale cada palabra al empezar
+const PUNTOS_LETRA_MAL   = 15;       // se restan por cada letra incorrecta
+const PUNTOS_TIEMPO_BONUS = 2;       // bonus por cada segundo restante al ganar
+
+// ══════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ══════════════════════════════════════════════
 let nickname = "";
-let palabraSeleccionada = null;
+let rondaActual = 0;           // 0-indexed, va de 0 a TOTAL_RONDAS-1
+let palabrasPartida = [];      // las 4 palabras elegidas para esta partida
+let palabraActual = null;
 let progreso = [];
-let intentosMaximos = 6;
 let intentosFallidos = 0;
-let tiempoRestante = 30;
-let score = 0;
+let tiempoRestante = TIEMPO_POR_RONDA;
 let timerInterval = null;
+let puntosRondaActual = 0;     // puntos ganados en la ronda actual
+let puntosAcumulados = 0;      // puntos totales de toda la partida
+let historialRondas = [];      // [{palabra, ganada, puntos}]
+let rondaTerminada = false;    // flag para evitar doble disparo
 
-// Elementos del DOM
-const screenStart = document.getElementById("start-screen");
-const screenGame = document.getElementById("game-screen");
-const screenEnd = document.getElementById("end-screen");
+// ══════════════════════════════════════════════
+//  ELEMENTOS DEL DOM
+// ══════════════════════════════════════════════
+const screenStart     = document.getElementById("start-screen");
+const screenGame      = document.getElementById("game-screen");
+const screenRoundOver = document.getElementById("round-over-screen");
+const screenEnd       = document.getElementById("end-screen");
 
-const inputNickname = document.getElementById("nickname");
-const btnStart = document.getElementById("btn-start");
+const inputNickname   = document.getElementById("nickname");
+const btnStart        = document.getElementById("btn-start");
 const displayNickname = document.getElementById("display-nickname");
-const displayScore = document.getElementById("display-score");
+const displayScore    = document.getElementById("display-score");
+const displayRound    = document.getElementById("display-round");
+const displayTotal    = document.getElementById("display-total-rounds");
 
-const timerBar = document.getElementById("timer-bar");
-const timerText = document.getElementById("timer-text");
-const pistaText = document.getElementById("pista");
+const btnEndGame      = document.getElementById("btn-end-game");
+
+const timerBar        = document.getElementById("timer-bar");
+const countdownRing   = document.getElementById("countdown-ring");
+const countdownNumber = document.getElementById("countdown-number");
+const CIRCUMFERENCE   = 2 * Math.PI * 44; // ~276.46 to match stroke-dasharray
+const pistaText       = document.getElementById("pista");
 const palabraContainer = document.getElementById("palabra");
-const letrasContainer = document.getElementById("letras");
+const letrasContainer  = document.getElementById("letras");
 
-const hangmanParts = [
-    document.querySelector(".head"),
-    document.querySelector(".body"),
-    document.querySelector(".left-arm"),
-    document.querySelector(".right-arm"),
-    document.querySelector(".left-leg"),
-    document.querySelector(".right-leg")
-];
+const hangmanParts = document.querySelectorAll(".hangman-svg .part");
 
-const endTitle = document.getElementById("end-title");
-const endMessage = document.getElementById("end-message");
+// Pantalla Round Over
+const roundOverIcon    = document.getElementById("round-over-icon");
+const roundOverTitle   = document.getElementById("round-over-title");
+const roundOverMessage = document.getElementById("round-over-message");
+const roundOverAnswer  = document.getElementById("round-over-answer");
+const roundScoreSpan   = document.getElementById("round-score");
+const roundTotalSpan   = document.getElementById("round-total");
+const btnNextRound     = document.getElementById("btn-next-round");
+
+// Pantalla Fin
+const endTitle         = document.getElementById("end-title");
+const endMessage       = document.getElementById("end-message");
+const roundSummary     = document.getElementById("round-summary");
 const finalScoreDisplay = document.getElementById("final-score");
-const btnRestart = document.getElementById("btn-restart");
-const leaderboardList = document.getElementById("leaderboard-list");
+const btnRestart       = document.getElementById("btn-restart");
+const leaderboardList  = document.getElementById("leaderboard-list");
 
-// --- INICIO Y FLUJO DE PANTALLAS ---
-
+// ══════════════════════════════════════════════
+//  EVENTOS
+// ══════════════════════════════════════════════
 btnStart.addEventListener("click", () => {
     const name = inputNickname.value.trim();
-    if (name.length < 3) {
-        alert("Por favor ingresa un Nickname de al menos 3 caracteres.");
+    if (name.length < 2) {
+        inputNickname.classList.add("shake");
+        setTimeout(() => inputNickname.classList.remove("shake"), 400);
         return;
     }
     nickname = name;
     displayNickname.innerText = nickname;
-    iniciarJuego();
+    displayTotal.innerText = TOTAL_RONDAS;
+    iniciarPartida();
+});
+
+inputNickname.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") btnStart.click();
+});
+
+btnNextRound.addEventListener("click", () => {
+    rondaActual++;
+    if (rondaActual >= TOTAL_RONDAS) {
+        terminarPartida();
+    } else {
+        iniciarRonda();
+    }
 });
 
 btnRestart.addEventListener("click", () => {
-    iniciarJuego();
+    iniciarPartida();
 });
 
+btnEndGame.addEventListener("click", () => {
+    location.reload();
+});
+
+// ══════════════════════════════════════════════
+//  FLUJO DE PANTALLAS
+// ══════════════════════════════════════════════
 function changeScreen(screen) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     screen.classList.add("active");
 }
 
-function iniciarJuego() {
-    score = 0;
+// ══════════════════════════════════════════════
+//  INICIO DE PARTIDA (4 rondas)
+// ══════════════════════════════════════════════
+function iniciarPartida() {
+    puntosAcumulados = 0;
+    rondaActual = 0;
+    historialRondas = [];
+    displayScore.innerText = 0;
+
+    // Elegir 4 palabras aleatorias sin repetir
+    const shuffled = [...BANCO_PALABRAS].sort(() => Math.random() - 0.5);
+    palabrasPartida = shuffled.slice(0, TOTAL_RONDAS);
+
+    iniciarRonda();
+}
+
+// ══════════════════════════════════════════════
+//  INICIO DE RONDA
+// ══════════════════════════════════════════════
+function iniciarRonda() {
+    rondaTerminada = false;
     intentosFallidos = 0;
-    displayScore.innerText = score;
+    puntosRondaActual = PUNTOS_BASE;
+
+    // Resetear ahorcado
     hangmanParts.forEach(part => part.classList.add("hidden"));
-    
-    // Elegir palabra aleatoria
-    palabraSeleccionada = palabras[Math.floor(Math.random() * palabras.length)];
-    progreso = Array(palabraSeleccionada.palabra.length).fill("_");
-    
-    pistaText.innerText = palabraSeleccionada.pista;
-    
-    crearTeclado();
+
+    // Palabra de esta ronda
+    palabraActual = palabrasPartida[rondaActual];
+    progreso = Array(palabraActual.palabra.length).fill("_");
+
+    // Actualizar UI
+    displayRound.innerText = rondaActual + 1;
+    pistaText.innerText = palabraActual.pista;
     mostrarPalabra();
+    crearTeclado();
+
     changeScreen(screenGame);
     reiniciarTemporizador();
 }
 
-// --- LOGICA DE JUEGO ---
-
+// ══════════════════════════════════════════════
+//  MOSTRAR PALABRA
+// ══════════════════════════════════════════════
 function mostrarPalabra() {
-    palabraContainer.innerText = progreso.join(" ");
+    palabraContainer.innerHTML = progreso
+        .map(c => `<span class="letter-box ${c !== '_' ? 'revealed' : ''}">${c}</span>`)
+        .join("");
 }
 
+// ══════════════════════════════════════════════
+//  CREAR TECLADO
+// ══════════════════════════════════════════════
 function crearTeclado() {
     letrasContainer.innerHTML = "";
     const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    
+
     letras.split("").forEach(letra => {
         const btn = document.createElement("button");
         btn.innerText = letra;
@@ -113,167 +212,239 @@ function crearTeclado() {
     });
 }
 
+// ══════════════════════════════════════════════
+//  LÓGICA DE INTENTO
+// ══════════════════════════════════════════════
 function procesarIntento(letra, btn) {
-    if(btn) btn.disabled = true;
-    
+    if (rondaTerminada) return;
+    if (btn) btn.disabled = true;
+
     let acierto = false;
-    for (let i = 0; i < palabraSeleccionada.palabra.length; i++) {
-        if (palabraSeleccionada.palabra[i] === letra) {
+    for (let i = 0; i < palabraActual.palabra.length; i++) {
+        if (palabraActual.palabra[i] === letra) {
             progreso[i] = letra;
             acierto = true;
         }
     }
 
     if (acierto) {
-        if(btn) btn.classList.add("correct");
-        score += 10;
-        displayScore.innerText = score;
-        
-        // Reiniciar tiempo al acertar una letra? Opcional. 
-        // Lo mantendremos corriendo o lo reiniciamos para dar más chance.
-        reiniciarTemporizador(); 
+        if (btn) btn.classList.add("correct");
     } else {
-        if(btn) btn.classList.add("wrong");
-        registrarFallo();
+        if (btn) btn.classList.add("wrong");
+        // Restar puntos por letra incorrecta
+        puntosRondaActual = Math.max(0, puntosRondaActual - PUNTOS_LETRA_MAL);
+        // Mostrar parte del ahorcado
+        if (intentosFallidos < INTENTOS_MAXIMOS) {
+            hangmanParts[intentosFallidos].classList.remove("hidden");
+            intentosFallidos++;
+        }
+        // Shake animation
+        screenGame.classList.remove("shake");
+        void screenGame.offsetWidth;
+        screenGame.classList.add("shake");
     }
 
     mostrarPalabra();
     verificarEstado();
 }
 
-function registrarFallo() {
-    if (intentosFallidos < intentosMaximos) {
-        hangmanParts[intentosFallidos].classList.remove("hidden");
-        // Shake animation on board
-        screenGame.classList.remove("shake");
-        void screenGame.offsetWidth; // trigger reflow
-        screenGame.classList.add("shake");
-        intentosFallidos++;
-    }
-    // Restar puntos por fallo
-    score = Math.max(0, score - 5);
-    displayScore.innerText = score;
-    
-    // Al fallar se reinicia el contador
-    reiniciarTemporizador();
-}
-
+// ══════════════════════════════════════════════
+//  VERIFICAR ESTADO DE LA RONDA
+// ══════════════════════════════════════════════
 function verificarEstado() {
-    // Si ya no quedan "_" en progreso, el jugador ganó
+    if (rondaTerminada) return;
+
+    // Ganó la palabra
     if (!progreso.includes("_")) {
-        terminarJuego(true);
-    } 
-    // Si alcanzo el máximo de fallos
-    else if (intentosFallidos >= intentosMaximos) {
-        terminarJuego(false);
+        finalizarRonda(true);
+    }
+    // Perdió por intentos
+    else if (intentosFallidos >= INTENTOS_MAXIMOS) {
+        finalizarRonda(false);
     }
 }
 
-// --- TEMPORIZADOR ---
-
+// ══════════════════════════════════════════════
+//  TEMPORIZADOR
+// ══════════════════════════════════════════════
 function reiniciarTemporizador() {
     clearInterval(timerInterval);
-    tiempoRestante = 30;
+    tiempoRestante = TIEMPO_POR_RONDA;
     actualizarVistaTimer();
-    
+
     timerInterval = setInterval(() => {
         tiempoRestante--;
         actualizarVistaTimer();
-        
+
         if (tiempoRestante <= 0) {
-            // El tiempo expiró, cuenta como un fallo
-            registrarFallo();
-            verificarEstado();
+            // Tiempo agotado → pierde esta ronda
+            finalizarRonda(false, true);
         }
     }, 1000);
 }
 
 function actualizarVistaTimer() {
-    timerText.innerText = tiempoRestante + "s";
-    const porcentaje = (tiempoRestante / 30) * 100;
+    // Update number
+    countdownNumber.innerText = tiempoRestante;
+
+    // Update bar width
+    const porcentaje = (tiempoRestante / TIEMPO_POR_RONDA) * 100;
     timerBar.style.width = porcentaje + "%";
-    
+
+    // Update circular ring offset
+    const offset = CIRCUMFERENCE * (1 - tiempoRestante / TIEMPO_POR_RONDA);
+    countdownRing.style.strokeDashoffset = offset;
+
+    // Color changes based on remaining time
     if (tiempoRestante <= 10) {
         timerBar.style.backgroundColor = "var(--error)";
-        timerText.style.color = "var(--error)";
+        countdownRing.style.stroke = "var(--error)";
+        countdownNumber.style.color = "var(--error)";
     } else if (tiempoRestante <= 20) {
         timerBar.style.backgroundColor = "var(--warning)";
-        timerText.style.color = "var(--warning)";
+        countdownRing.style.stroke = "var(--warning)";
+        countdownNumber.style.color = "var(--warning)";
     } else {
         timerBar.style.backgroundColor = "var(--success)";
-        timerText.style.color = "var(--text-muted)";
+        countdownRing.style.stroke = "var(--success)";
+        countdownNumber.style.color = "var(--text-main)";
     }
 }
 
-// --- FIN DEL JUEGO ---
-
-async function terminarJuego(victoria) {
+// ══════════════════════════════════════════════
+//  FINALIZAR RONDA
+// ══════════════════════════════════════════════
+function finalizarRonda(ganada, tiempoAgotado = false) {
+    if (rondaTerminada) return;
+    rondaTerminada = true;
     clearInterval(timerInterval);
-    
-    if (victoria) {
-        // Bonus por intentos restantes y tiempo
-        const intentosRestantes = intentosMaximos - intentosFallidos;
-        score += (intentosRestantes * 20);
-        score += (tiempoRestante * 2);
-        
-        endTitle.innerText = "🎉 ¡Ganaste!";
-        endMessage.innerText = `¡Descubriste la palabra: ${palabraSeleccionada.palabra}!`;
-        endTitle.style.color = "var(--success)";
+
+    // Desactivar teclado
+    document.querySelectorAll(".keyboard button").forEach(btn => btn.disabled = true);
+
+    let puntosFinales = 0;
+
+    if (ganada) {
+        // Bonus por tiempo restante
+        puntosFinales = puntosRondaActual + (tiempoRestante * PUNTOS_TIEMPO_BONUS);
+        roundOverIcon.innerText = "🎉";
+        roundOverTitle.innerText = "¡Correcto!";
+        roundOverTitle.style.color = "var(--success)";
+        roundOverMessage.innerText = `¡Descubriste la palabra!`;
+    } else if (tiempoAgotado) {
+        puntosFinales = 0;
+        roundOverIcon.innerText = "⏰";
+        roundOverTitle.innerText = "¡Tiempo Agotado!";
+        roundOverTitle.style.color = "var(--warning)";
+        roundOverMessage.innerText = "Lo siento, tu tiempo terminó. ¡Vayamos a la siguiente pregunta!";
     } else {
-        endTitle.innerText = "💀 Perdiste";
-        endMessage.innerText = `La palabra era: ${palabraSeleccionada.palabra}`;
-        endTitle.style.color = "var(--error)";
+        puntosFinales = 0;
+        roundOverIcon.innerText = "💀";
+        roundOverTitle.innerText = "¡Ahorcado!";
+        roundOverTitle.style.color = "var(--error)";
+        roundOverMessage.innerText = "Usaste todos tus intentos.";
     }
 
-    finalScoreDisplay.innerText = score;
+    // Guardar historial
+    puntosAcumulados += puntosFinales;
+    historialRondas.push({
+        palabra: palabraActual.palabra,
+        ganada: ganada,
+        puntos: puntosFinales
+    });
+
+    // Actualizar UI
+    displayScore.innerText = puntosAcumulados;
+    roundOverAnswer.innerText = `La palabra era: ${palabraActual.palabra}`;
+    roundScoreSpan.innerText = puntosFinales;
+    roundTotalSpan.innerText = puntosAcumulados;
+
+    // Texto del botón
+    if (rondaActual + 1 >= TOTAL_RONDAS) {
+        btnNextRound.innerText = "Ver Resultados Finales 🏁";
+    } else {
+        btnNextRound.innerText = `Siguiente Pregunta → (${rondaActual + 2}/${TOTAL_RONDAS})`;
+    }
+
+    changeScreen(screenRoundOver);
+}
+
+// ══════════════════════════════════════════════
+//  FINALIZAR PARTIDA COMPLETA
+// ══════════════════════════════════════════════
+async function terminarPartida() {
+    const rondasGanadas = historialRondas.filter(r => r.ganada).length;
+
+    endTitle.innerText = rondasGanadas === TOTAL_RONDAS
+        ? "🏆 ¡Partida Perfecta!"
+        : rondasGanadas > 0
+            ? "🎮 ¡Buen Juego!"
+            : "😅 ¡Mejor suerte la próxima!";
+
+    endMessage.innerText = `Acertaste ${rondasGanadas} de ${TOTAL_RONDAS} palabras.`;
+
+    // Crear resumen de rondas
+    roundSummary.innerHTML = historialRondas.map((r, i) => `
+        <div class="summary-row ${r.ganada ? 'won' : 'lost'}">
+            <span class="summary-round">Pregunta ${i + 1}</span>
+            <span class="summary-word">${r.palabra}</span>
+            <span class="summary-result">${r.ganada ? '✅' : '❌'}</span>
+            <span class="summary-pts">${r.puntos} pts</span>
+        </div>
+    `).join("");
+
+    finalScoreDisplay.innerText = puntosAcumulados;
     changeScreen(screenEnd);
 
-    // Guardar puntuación en base de datos
-    await guardarPuntuacion(nickname, score);
+    // Guardar en base de datos
+    await guardarPuntuacion(nickname, puntosAcumulados);
 }
 
-// --- INTEGRACIÓN CON INSFORGE (SUPABASE) ---
-
+// ══════════════════════════════════════════════
+//  INTEGRACIÓN CON INSFORGE
+// ══════════════════════════════════════════════
 async function guardarPuntuacion(player, puntos) {
-    if (!supabase) return;
+    if (!insforge) {
+        alert("Error de conexión: Cliente InsForge no inicializado");
+        return;
+    }
     try {
-        const { error } = await supabase
+        const { error } = await insforge.database
             .from('leaderboard')
             .insert([{ player_name: player, score: puntos }]);
-            
+
         if (error) throw error;
-        // Refrescar leaderboard inmediatamente
         fetchLeaderboard();
     } catch (err) {
         console.error("Error guardando puntuación:", err);
+        alert("Error guardando en BD: " + (err.message || JSON.stringify(err)));
     }
 }
 
 async function fetchLeaderboard() {
-    if (!supabase) return;
+    if (!insforge) return;
     try {
-        const { data, error } = await supabase
+        const { data, error } = await insforge.database
             .from('leaderboard')
             .select('player_name, score')
             .order('score', { ascending: false })
             .limit(10);
-            
+
         if (error) throw error;
-        
         renderLeaderboard(data);
     } catch (err) {
         console.error("Error obteniendo leaderboard:", err);
-        leaderboardList.innerHTML = `<li class="loading">Error al cargar leaderboard</li>`;
+        leaderboardList.innerHTML = `<li class="loading">Error de BD: ${err.message || 'Error'}</li>`;
     }
 }
 
 function renderLeaderboard(data) {
     leaderboardList.innerHTML = "";
-    if (data.length === 0) {
+    if (!data || data.length === 0) {
         leaderboardList.innerHTML = `<li class="loading">Sin jugadores aún</li>`;
         return;
     }
-    
+
     data.forEach((entry, index) => {
         let rankIcon = `#${index + 1}`;
         if (index === 0) rankIcon = "🥇";
@@ -292,19 +463,19 @@ function renderLeaderboard(data) {
     });
 }
 
-// Configurar suscripción en tiempo real para el Leaderboard
 function setupRealtimeSubscription() {
-    if (!supabase) return;
-    supabase
+    if (!insforge) return;
+    insforge
         .channel('public:leaderboard')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, payload => {
-            console.log("Cambio en leaderboard detectado!", payload);
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, () => {
             fetchLeaderboard();
         })
         .subscribe();
 }
 
-// Inicializar la tabla al cargar la página
+// ══════════════════════════════════════════════
+//  INICIALIZAR AL CARGAR
+// ══════════════════════════════════════════════
 window.addEventListener("DOMContentLoaded", () => {
     fetchLeaderboard();
     setupRealtimeSubscription();

@@ -11,7 +11,7 @@
 
   <div class="app-container">
     
-    <!-- Lado Izquierdo: Tablero de Juego -->
+    <!-- Tablero de Juego -->
     <main class="game-board">
       
       <!-- Pantalla de Inicio -->
@@ -23,61 +23,108 @@
           <div class="input-group">
             <input type="text" id="nickname" placeholder="Ingresa tu Nickname" autocomplete="off" maxlength="15">
           </div>
+          <div class="rules-container">
+            <h3>Reglas del Juego</h3>
+            <ul>
+              <li>Jugarás <strong>6 rondas</strong> con 30 segundos por palabra.</li>
+              <li>Adivinar la palabra vale hasta <strong>100 puntos</strong>.</li>
+              <li><strong>Bonificación:</strong> Puntos extra por los segundos sobrantes.</li>
+              <li><strong>Penalización:</strong> -10 puntos por cada letra incorrecta.</li>
+            </ul>
+          </div>
           <button id="btn-start" class="btn-primary">Iniciar Juego</button>
         </div>
       </section>
 
       <!-- Pantalla de Juego -->
       <section id="game-screen" class="screen">
+
+        <!-- HEADER: Jugador | Ronda | Puntos -->
         <div class="game-header">
-          <div class="player-info">Jugador: <span id="display-nickname"></span></div>
-          <div class="score-info">Puntos: <span id="display-score">0</span></div>
+          <div class="player-info">👤 <span id="display-nickname"></span></div>
+          <div class="round-info">Pregunta <span id="display-round">1</span> / <span id="display-total-rounds">4</span></div>
+          <div class="score-info">⭐ <span id="display-score">0</span> pts</div>
         </div>
 
-        <div class="timer-container">
-          <div class="timer-bar" id="timer-bar"></div>
-          <div class="timer-text" id="timer-text">30s</div>
-        </div>
+        <!-- CONTENIDO CENTRAL: Cronómetro + Ahorcado + Palabra -->
+        <div class="game-center">
 
-        <div class="hangman-canvas-container">
-          <!-- Ahorcado CSS -->
-          <div class="hangman-structure">
-            <div class="pole"></div>
-            <div class="top-bar"></div>
-            <div class="rope"></div>
-            <div class="figure">
-              <div class="head part hidden"></div>
-              <div class="body part hidden"></div>
-              <div class="arm left-arm part hidden"></div>
-              <div class="arm right-arm part hidden"></div>
-              <div class="leg left-leg part hidden"></div>
-              <div class="leg right-leg part hidden"></div>
+          <!-- Cronómetro circular lateral -->
+          <div class="timer-panel">
+            <div class="countdown-circle">
+              <svg class="countdown-svg" viewBox="0 0 100 100">
+                <circle class="countdown-bg" cx="50" cy="50" r="44" />
+                <circle class="countdown-ring" id="countdown-ring" cx="50" cy="50" r="44" />
+              </svg>
+              <div class="countdown-number" id="countdown-number">30</div>
             </div>
+            <div class="timer-label">segundos</div>
+            <!-- Barra lineal debajo del círculo -->
+            <div class="timer-bar-container">
+              <div class="timer-bar" id="timer-bar"></div>
+            </div>
+          </div>
+
+          <!-- Ahorcado + palabra + pista -->
+          <div class="game-main">
+            <div class="hangman-canvas-container">
+              <svg viewBox="0 0 200 230" class="hangman-svg">
+                <line x1="20" y1="215" x2="100" y2="215" stroke="var(--text-main)" stroke-width="4" stroke-linecap="round" />
+                <line x1="60" y1="215" x2="60" y2="15" stroke="var(--text-main)" stroke-width="4" stroke-linecap="round" />
+                <line x1="60" y1="15" x2="140" y2="15" stroke="var(--text-main)" stroke-width="4" stroke-linecap="round" />
+                <line x1="140" y1="15" x2="140" y2="45" stroke="var(--warning)" stroke-width="4" stroke-linecap="round" />
+                <circle cx="140" cy="65" r="19" class="part head hidden" stroke="var(--error)" stroke-width="4" fill="none" />
+                <line x1="140" y1="84" x2="140" y2="140" class="part body hidden" stroke="var(--error)" stroke-width="4" stroke-linecap="round" />
+                <line x1="140" y1="95"  x2="112" y2="122" class="part left-arm hidden" stroke="var(--error)" stroke-width="4" stroke-linecap="round" />
+                <line x1="140" y1="95"  x2="168" y2="122" class="part right-arm hidden" stroke="var(--error)" stroke-width="4" stroke-linecap="round" />
+                <line x1="140" y1="140" x2="112" y2="178" class="part left-leg hidden" stroke="var(--error)" stroke-width="4" stroke-linecap="round" />
+                <line x1="140" y1="140" x2="168" y2="178" class="part right-leg hidden" stroke="var(--error)" stroke-width="4" stroke-linecap="round" />
+              </svg>
+            </div>
+
+            <div class="clue-container">
+              <div class="clue-badge">💡 Pista</div>
+              <p id="pista"></p>
+            </div>
+
+            <div id="palabra" class="word-display"></div>
           </div>
         </div>
 
-        <div class="clue-container">
-          <div class="clue-badge">💡 Pista</div>
-          <p id="pista"></p>
-        </div>
-
-        <div id="palabra" class="word-display"></div>
+        <!-- TECLADO completo -->
         <div id="letras" class="keyboard"></div>
+
+      </section>
+
+      <!-- Pantalla de Aviso (entre rondas) -->
+      <section id="round-over-screen" class="screen">
+        <div class="glass-card round-over-card">
+          <div class="round-over-icon" id="round-over-icon">⏰</div>
+          <h1 id="round-over-title">¡Tiempo Agotado!</h1>
+          <p id="round-over-message">Lo siento, tu tiempo terminó.</p>
+          <p id="round-over-answer" class="answer-reveal"></p>
+          <div class="round-over-score">Puntos en esta ronda: <span id="round-score">0</span></div>
+          <div class="round-over-total">Puntos acumulados: <span id="round-total">0</span></div>
+          <button id="btn-next-round" class="btn-primary">Siguiente Pregunta →</button>
+        </div>
       </section>
 
       <!-- Pantalla de Fin -->
       <section id="end-screen" class="screen">
         <div class="glass-card end-card">
+          <div class="end-icon">🏁</div>
           <h1 id="end-title">¡Juego Terminado!</h1>
           <p id="end-message"></p>
+          <div id="round-summary" class="round-summary"></div>
           <div class="final-score-display">Puntuación Final: <span id="final-score">0</span></div>
           <button id="btn-restart" class="btn-primary">Volver a Jugar</button>
+          <button id="btn-end-game" class="btn-secondary" style="margin-top: 10px;">Finalizar Juego</button>
         </div>
       </section>
 
     </main>
 
-    <!-- Lado Derecho: Tabla de Clasificaciones -->
+    <!-- Tabla de Clasificaciones -->
     <aside class="leaderboard-sidebar">
       <div class="leaderboard-header">
         <h2>🏆 Top Jugadores</h2>

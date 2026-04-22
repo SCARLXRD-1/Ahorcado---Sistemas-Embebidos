@@ -439,36 +439,30 @@ async function terminarPartida() {
 // ══════════════════════════════════════════════
 async function guardarPuntuacion(player, puntos) {
     if (!insforge) {
-        alert("Error de conexión: Cliente InsForge no inicializado");
+        console.error("Cliente InsForge no inicializado");
         return;
     }
     try {
-        if (currentRecordId) {
-            // Actualizar registro existente
+        if (numeroDePartida > 1) {
+            // Actualizar registro existente usando el nombre del jugador
             const { error } = await insforge.database
                 .from('leaderboard')
                 .update({ score: puntos })
-                .eq('id', currentRecordId);
+                .eq('player_name', player);
             
             if (error) throw error;
         } else {
-            // Insertar nuevo registro y recuperar su ID
-            const { data, error } = await insforge.database
+            // Insertar nuevo registro
+            const { error } = await insforge.database
                 .from('leaderboard')
-                .insert([{ player_name: player, score: puntos }])
-                .select();
+                .insert([{ player_name: player, score: puntos }]);
                 
             if (error) throw error;
-            if (data && data.length > 0) {
-                currentRecordId = data[0].id;
-            }
         }
         
         fetchLeaderboard();
     } catch (err) {
         console.error("Error guardando puntuación:", err);
-        // Si falla por falta de permisos en select, mostrar un aviso más amigable
-        alert("Error guardando en BD: " + (err.message || "Error desconocido"));
     }
 }
 

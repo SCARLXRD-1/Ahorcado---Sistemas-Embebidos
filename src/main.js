@@ -211,8 +211,9 @@ function crearTeclado() {
     let pool = palabraActual.palabra.split("");
     
     // Añadir letras señuelo (falsas)
+    // Para que puedan perder (6 intentos), debe haber al menos 6+ trampas.
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const numDecoys = Math.max(4, Math.floor(palabraActual.palabra.length / 2)); 
+    const numDecoys = INTENTOS_MAXIMOS + Math.max(2, Math.floor(palabraActual.palabra.length / 2)); 
     for(let i=0; i < numDecoys; i++){
         const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
         pool.push(randomLetter);

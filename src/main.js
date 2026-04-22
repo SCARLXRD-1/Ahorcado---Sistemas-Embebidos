@@ -198,13 +198,27 @@ function mostrarPalabra() {
 }
 
 // ══════════════════════════════════════════════
-//  CREAR TECLADO
+//  CREAR TECLADO (Fichas desordenadas)
 // ══════════════════════════════════════════════
 function crearTeclado() {
     letrasContainer.innerHTML = "";
-    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    
+    // Obtener las letras de la palabra
+    let pool = palabraActual.palabra.split("");
+    
+    // Añadir letras señuelo (falsas)
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numDecoys = Math.max(4, Math.floor(palabraActual.palabra.length / 2)); 
+    for(let i=0; i < numDecoys; i++){
+        const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+        pool.push(randomLetter);
+    }
 
-    letras.split("").forEach(letra => {
+    // Mezclar el array de fichas
+    pool.sort(() => Math.random() - 0.5);
+
+    // Crear un botón para cada ficha
+    pool.forEach(letra => {
         const btn = document.createElement("button");
         btn.innerText = letra;
         btn.onclick = () => procesarIntento(letra, btn);
@@ -219,26 +233,33 @@ function procesarIntento(letra, btn) {
     if (rondaTerminada) return;
     if (btn) btn.disabled = true;
 
-    let acierto = false;
+    let indexToReveal = -1;
+    // Buscar la primera aparición de la letra que aún no haya sido revelada
     for (let i = 0; i < palabraActual.palabra.length; i++) {
-        if (palabraActual.palabra[i] === letra) {
-            progreso[i] = letra;
-            acierto = true;
+        if (palabraActual.palabra[i] === letra && progreso[i] === "_") {
+            indexToReveal = i;
+            break;
         }
     }
 
-    if (acierto) {
+    if (indexToReveal !== -1) {
+        // Se encontró una instancia de la letra para revelar
+        progreso[indexToReveal] = letra;
         if (btn) btn.classList.add("correct");
     } else {
+        // La letra no está en la palabra o ya se usaron todas sus instancias
         if (btn) btn.classList.add("wrong");
+        
         // Restar puntos por letra incorrecta
         puntosRondaActual = Math.max(0, puntosRondaActual - PUNTOS_LETRA_MAL);
+        
         // Mostrar parte del ahorcado
         if (intentosFallidos < INTENTOS_MAXIMOS) {
             hangmanParts[intentosFallidos].classList.remove("hidden");
             intentosFallidos++;
         }
-        // Shake animation
+        
+        // Animación de error
         screenGame.classList.remove("shake");
         void screenGame.offsetWidth;
         screenGame.classList.add("shake");

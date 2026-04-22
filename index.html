@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ahorcado - Sistemas Embebidos</title>
+  <link rel="stylesheet" href="./src/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Lado Izquierdo: Tablero de Juego -->
+    <main class="game-board">
+      
+      <!-- Pantalla de Inicio -->
+      <section id="start-screen" class="screen active">
+        <div class="glass-card start-card">
+          <div class="icon-pulse">🎮</div>
+          <h1>Ahorcado</h1>
+          <p class="subtitle">Edición Sistemas Embebidos</p>
+          <div class="input-group">
+            <input type="text" id="nickname" placeholder="Ingresa tu Nickname" autocomplete="off" maxlength="15">
+          </div>
+          <button id="btn-start" class="btn-primary">Iniciar Juego</button>
+        </div>
+      </section>
+
+      <!-- Pantalla de Juego -->
+      <section id="game-screen" class="screen">
+        <div class="game-header">
+          <div class="player-info">Jugador: <span id="display-nickname"></span></div>
+          <div class="score-info">Puntos: <span id="display-score">0</span></div>
+        </div>
+
+        <div class="timer-container">
+          <div class="timer-bar" id="timer-bar"></div>
+          <div class="timer-text" id="timer-text">30s</div>
+        </div>
+
+        <div class="hangman-canvas-container">
+          <!-- Ahorcado CSS -->
+          <div class="hangman-structure">
+            <div class="pole"></div>
+            <div class="top-bar"></div>
+            <div class="rope"></div>
+            <div class="figure">
+              <div class="head part hidden"></div>
+              <div class="body part hidden"></div>
+              <div class="arm left-arm part hidden"></div>
+              <div class="arm right-arm part hidden"></div>
+              <div class="leg left-leg part hidden"></div>
+              <div class="leg right-leg part hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="clue-container">
+          <div class="clue-badge">💡 Pista</div>
+          <p id="pista"></p>
+        </div>
+
+        <div id="palabra" class="word-display"></div>
+        <div id="letras" class="keyboard"></div>
+      </section>
+
+      <!-- Pantalla de Fin -->
+      <section id="end-screen" class="screen">
+        <div class="glass-card end-card">
+          <h1 id="end-title">¡Juego Terminado!</h1>
+          <p id="end-message"></p>
+          <div class="final-score-display">Puntuación Final: <span id="final-score">0</span></div>
+          <button id="btn-restart" class="btn-primary">Volver a Jugar</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Lado Derecho: Tabla de Clasificaciones -->
+    <aside class="leaderboard-sidebar">
+      <div class="leaderboard-header">
+        <h2>🏆 Top Jugadores</h2>
+        <div class="live-indicator"><span class="dot"></span> En vivo</div>
+      </div>
+      <ul id="leaderboard-list" class="leaderboard-list">
+        <li class="loading">Cargando clasificaciones...</li>
+      </ul>
+    </aside>
+
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

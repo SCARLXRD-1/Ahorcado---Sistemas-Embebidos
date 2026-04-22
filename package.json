@@ -1,0 +1,22 @@
+{
+  "name": "actividad-del-emebidos",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "bugs": {
+    "url": "https://github.com/SCARLXRD-1/Ahorcado---Sistemas-Embebidos/issues"
+  },
+  "homepage": "https://github.com/SCARLXRD-1/Ahorcado---Sistemas-Embebidos#readme",
+  "devDependencies": {
+    "vite": "^8.0.9"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.0"
+  }
+}

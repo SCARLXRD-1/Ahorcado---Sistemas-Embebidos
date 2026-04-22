@@ -58,6 +58,9 @@ let puntosAcumulados = 0;      // puntos totales de toda la partida
 let historialRondas = [];      // [{palabra, ganada, puntos}]
 let rondaTerminada = false;    // flag para evitar doble disparo
 
+let currentRecordId = null;    // Para actualizar el mismo registro al volver a jugar
+let numeroDePartida = 1;       // Limitar el número de veces que puede jugar
+
 // ══════════════════════════════════════════════
 //  ELEMENTOS DEL DOM
 // ══════════════════════════════════════════════
@@ -132,6 +135,7 @@ btnNextRound.addEventListener("click", () => {
 });
 
 btnRestart.addEventListener("click", () => {
+    numeroDePartida++;
     iniciarPartida();
 });
 
@@ -415,6 +419,14 @@ async function terminarPartida() {
     `).join("");
 
     finalScoreDisplay.innerText = puntosAcumulados;
+    
+    // Solo permitir jugar una vez más (máximo 2 partidas en total)
+    if (numeroDePartida >= 2) {
+        btnRestart.style.display = 'none';
+    } else {
+        btnRestart.style.display = 'inline-block';
+    }
+    
     changeScreen(screenEnd);
 
     // Guardar en base de datos
@@ -430,15 +442,32 @@ async function guardarPuntuacion(player, puntos) {
         return;
     }
     try {
-        const { error } = await insforge.database
-            .from('leaderboard')
-            .insert([{ player_name: player, score: puntos }]);
-
-        if (error) throw error;
+        if (currentRecordId) {
+            // Actualizar registro existente
+            const { error } = await insforge.database
+                .from('leaderboard')
+                .update({ score: puntos })
+                .eq('id', currentRecordId);
+            
+            if (error) throw error;
+        } else {
+            // Insertar nuevo registro y recuperar su ID
+            const { data, error } = await insforge.database
+                .from('leaderboard')
+                .insert([{ player_name: player, score: puntos }])
+                .select();
+                
+            if (error) throw error;
+            if (data && data.length > 0) {
+                currentRecordId = data[0].id;
+            }
+        }
+        
         fetchLeaderboard();
     } catch (err) {
         console.error("Error guardando puntuación:", err);
-        alert("Error guardando en BD: " + (err.message || JSON.stringify(err)));
+        // Si falla por falta de permisos en select, mostrar un aviso más amigable
+        alert("Error guardando en BD: " + (err.message || "Error desconocido"));
     }
 }
 

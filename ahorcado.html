@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Ahorcado - Sistemas Embebidos</title>
+<style>
+    body {
+        font-family: Arial;
+        text-align: center;
+        background: #0f172a;
+        color: white;
+    }
+
+    h1 {
+        color: #38bdf8;
+    }
+
+    #palabra {
+        font-size: 30px;
+        letter-spacing: 10px;
+        margin: 20px;
+    }
+
+    #letras button {
+        margin: 5px;
+        padding: 10px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    #mensaje {
+        margin-top: 20px;
+        font-size: 20px;
+        color: #f87171;
+    }
+
+    #pista {
+        color: #facc15;
+        margin: 10px;
+    }
+</style>
+</head>
+<body>
+
+<h1>🎮 Ahorcado - Sistemas Embebidos</h1>
+
+<div id="pista"></div>
+<div id="palabra"></div>
+<div id="letras"></div>
+<div id="mensaje"></div>
+
+<script>
+
+const palabras = [
+    { palabra: "IOT", pista: "Conecta dispositivos a internet" },
+    { palabra: "RTOS", pista: "Sistema operativo en tiempo real" },
+    { palabra: "CAN", pista: "Bus usado en automóviles" },
+    { palabra: "LIN", pista: "Bus de bajo costo" },
+    { palabra: "MQTT", pista: "Protocolo basado en TCP" },
+    { palabra: "COAP", pista: "Protocolo basado en UDP" },
+    { palabra: "I2C", pista: "Comunicación simple con pull-up" },
+    { palabra: "I3C", pista: "Versión moderna de I2C" },
+    { palabra: "TEDS", pista: "Datos del sensor para autoconfiguración" }
+];
+
+let palabraSeleccionada = palabras[Math.floor(Math.random() * palabras.length)];
+let palabra = palabraSeleccionada.palabra;
+let pista = palabraSeleccionada.pista;
+
+let progreso = Array(palabra.length).fill("_");
+let intentos = 6;
+
+document.getElementById("pista").innerText = "💡 Pista: " + pista;
+
+function mostrarPalabra() {
+    document.getElementById("palabra").innerText = progreso.join(" ");
+}
+
+function crearBotones() {
+    const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const contenedor = document.getElementById("letras");
+
+    letras.split("").forEach(letra => {
+        let btn = document.createElement("button");
+        btn.innerText = letra;
+
+        btn.onclick = () => {
+            btn.disabled = true;
+            verificarLetra(letra);
+        };
+
+        contenedor.appendChild(btn);
+    });
+}
+
+function verificarLetra(letra) {
+    let acierto = false;
+
+    for (let i = 0; i < palabra.length; i++) {
+        if (palabra[i] === letra) {
+            progreso[i] = letra;
+            acierto = true;
+        }
+    }
+
+    if (!acierto) {
+        intentos--;
+    }
+
+    mostrarPalabra();
+    verificarEstado();
+}
+
+function verificarEstado() {
+    if (!progreso.includes("_")) {
+        document.getElementById("mensaje").innerText = "🎉 ¡Ganaste!";
+        desactivarBotones();
+    }
+
+    if (intentos <= 0) {
+        document.getElementById("mensaje").innerText = "💀 Perdiste. Era: " + palabra;
+        desactivarBotones();
+    }
+}
+
+function desactivarBotones() {
+    document.querySelectorAll("#letras button").forEach(btn => btn.disabled = true);
+}
+
+mostrarPalabra();
+crearBotones();
+
+</script>
+
+</body>
+</html>
